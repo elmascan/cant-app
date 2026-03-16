@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Events ───────────────────────────────────────────────────────────────
+    match /events/{eventId} {
+      // Herkes okuyabilir (giriş yapmadan da etkinlikleri görebilsin)
+      allow read: if true;
+      // Kayıtlı kullanıcı oluşturabilir
+      allow create: if isAuth();
+      // Kayıtlı kullanıcı güncelleyebilir (join / leave / waitlistCount)
+      allow update: if isAuth();
+      // Sadece oluşturan silebilir
+      allow delete: if isAuth() && resource.data.created_by == request.auth.uid;
+
+      // Waitlist alt koleksiyonu
+      match /waitlist/{waitlistDocId} {
+        // Okuma: kayıtlı herkes (sıra numarası sorgusu için)
+        allow read: if isAuth();
+        // Oluşturma: sadece kendi kaydını ekleyebilir
+        allow create: if isAuth() && request.auth.uid == waitlistDocId;
+        // Silme: kendi kaydını silebilir VEYA başkası adına promote edilebilir
+        // (leaveEvent transaction'ı ayrılan kullanıcı çalıştırır, promoted user'ın
+        //  dokümanını da siler — bu nedenle isAuth() yeterli)
+        allow delete: if isAuth();
+      }
+    }
+
+    // ── Profiles ─────────────────────────────────────────────────────────────
+    match /profiles/{userId} {
+      allow read: if isAuth();
+      // Kendi profilini yazabilir; sunucu FCM token güncellemesi de dahil
+      allow write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+    match /notifications/{userId}/items/{notifId} {
+      // Sadece sahibi okuyabilir
+      allow read: if isAuth() && request.auth.uid == userId;
+      // Herhangi kayıtlı kullanıcı yazabilir:
+      // leaveEvent transaction'ı promoted user adına bildirim oluşturur
+      allow create: if isAuth();
+      // Sadece sahibi "read: true" yapabilir
+      allow update: if isAuth() && request.auth.uid == userId;
+    }
+
+    // ── Event Feedback ────────────────────────────────────────────────────────
+    match /event_feedback/{docId} {
+      // Kayıtlı kullanıcı kendi geri bildirimini yazabilir
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // Okuma kapalı (analitik için admin SDK kullanılacak)
+      allow read: if false;
+    }
+
+    // ── Swipes ────────────────────────────────────────────────────────────────
+    match /swipes/{swipeId} {
+      // Sadece kendi swipe'larını okuyabilir
+      allow read: if isAuth() && resource.data.swiperId == request.auth.uid;
+      // Sadece kendi swipe'ını yazabilir (swipeId = swiperId_swipedId formatı)
+      allow create: if isAuth() && request.resource.data.swiperId == request.auth.uid;
+      allow update: if isAuth() && resource.data.swiperId == request.auth.uid;
+    }
+
+    // ── Matches ───────────────────────────────────────────────────────────────
+    match /matches/{matchId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.users;
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid in resource.data.users;
+    }
+
+    // ── Direct Chats ──────────────────────────────────────────────────────────
+    match /chats/{matchId} {
+      match /messages/{messageId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && request.resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // ── Communities ───────────────────────────────────────────────────────────
+    match /communities/{communityId} {
+      allow read: if isAuth();
+      // Kayıtlı kullanıcı join/leave için community doc oluşturabilir/güncelleyebilir
+      allow create: if isAuth();
+      allow update: if isAuth();
+
+      match /messages/{messageId} {
+        allow read: if isAuth();
+        // Sadece kendi mesajını yazabilir
+        allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}
