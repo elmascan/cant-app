@@ -8,9 +8,9 @@ workflows:
         bundle_identifier: com.cant.sportsapp
       flutter: stable
       xcode: latest
-      vars:
-        BUNDLE_ID: com.cant.sportsapp
     scripts:
+      - name: Restore Firebase options
+        script: echo "$FIREBASE_OPTIONS" > lib/firebase_options.dart
       - name: Get Flutter packages
         script: flutter pub get
       - name: Set bundle ID
