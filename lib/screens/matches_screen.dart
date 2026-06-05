@@ -4,10 +4,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../services/firebase_service.dart';
+import '../amplitude_service.dart';
 import 'direct_chat_screen.dart';
 
-class MatchesTab extends StatelessWidget {
+class MatchesTab extends StatefulWidget {
   const MatchesTab({super.key});
+
+  @override
+  State<MatchesTab> createState() => _MatchesTabState();
+}
+
+class _MatchesTabState extends State<MatchesTab> {
+  @override
+  void initState() {
+    super.initState();
+    AmplitudeService().logScreenView('Matches');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,16 +152,22 @@ class _MatchTile extends StatelessWidget {
             : '';
 
         return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DirectChatScreen(
-                matchId: matchId,
-                otherName: name,
-                otherPhotoUrl: photoUrl,
+          onTap: () {
+            AmplitudeService().logEvent('Match Chat Opened', {
+              'match_id': matchId,
+              'other_uid': otherUid,
+            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DirectChatScreen(
+                  matchId: matchId,
+                  otherName: name,
+                  otherPhotoUrl: photoUrl,
+                ),
               ),
-            ),
-          ),
+            );
+          },
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(

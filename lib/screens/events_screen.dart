@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants.dart';
 import '../models/event.dart';
 import '../services/firebase_service.dart';
+import '../amplitude_service.dart';
 import '../widgets/event_card.dart';
 import '../widgets/leave_feedback_dialog.dart';
 
@@ -29,6 +30,7 @@ class _EventsTabState extends State<EventsTab> {
   @override
   void initState() {
     super.initState();
+    AmplitudeService().logScreenView('Events');
     _loadEvents();
   }
 
@@ -68,6 +70,11 @@ class _EventsTabState extends State<EventsTab> {
     _setLoading(event.id, true);
     try {
       await FirebaseService.joinEvent(event.id);
+      AmplitudeService().logEvent('Event Joined', {
+        'event_id': event.id,
+        'event_title': event.title,
+        'sport': event.sport,
+      });
       _updateEvent(event.id, (e) => e.copyWith(
         participants: e.participants + 1,
         attendees: [...e.attendees, _uid!],
@@ -103,6 +110,11 @@ class _EventsTabState extends State<EventsTab> {
     _setLoading(event.id, true);
     try {
       await FirebaseService.leaveEvent(event.id, event.title);
+      AmplitudeService().logEvent('Event Left', {
+        'event_id': event.id,
+        'event_title': event.title,
+        'sport': event.sport,
+      });
       _updateEvent(event.id, (e) {
         final att = List<String>.from(e.attendees)..remove(_uid);
         return e.copyWith(participants: e.participants - 1, attendees: att);
@@ -225,7 +237,10 @@ class _EventsTabState extends State<EventsTab> {
                   final f = _filters[i];
                   final active = _filter == f;
                   return GestureDetector(
-                    onTap: () => setState(() => _filter = f),
+                    onTap: () {
+                      setState(() => _filter = f);
+                      AmplitudeService().logEvent('Events Filter Changed', {'filter': f});
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       margin: const EdgeInsets.only(right: 8),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants.dart';
 import '../services/firebase_service.dart';
+import '../amplitude_service.dart';
 import 'sport_selection_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -30,11 +31,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await FirebaseService.signUp(
+      final result = await FirebaseService.signUp(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         fullName: _nameCtrl.text.trim(),
       );
+      await AmplitudeService().setUserId(result.user!.uid);
+      await AmplitudeService().logSignUp('email');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -42,6 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } catch (e) {
+      await AmplitudeService().logEvent('Register Failed', {'reason': e.toString()});
       setState(() => _error = 'Registration failed. Email may already be in use.');
     } finally {
       if (mounted) setState(() => _loading = false);

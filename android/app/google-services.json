@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "801298594312",
+    "firebase_url": "https://sports-community-d6b15-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "sports-community-d6b15",
+    "storage_bucket": "sports-community-d6b15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801298594312:android:5f78f9d532004d468eafbd",
+        "android_client_info": {
+          "package_name": "com.cant.sportsapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn_dr2wqtv4YgEqxusyFQ2yYYv06nX7c8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801298594312:android:dd9b2e68eba9f5d58eafbd",
+        "android_client_info": {
+          "package_name": "com.example.sports_community"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn_dr2wqtv4YgEqxusyFQ2yYYv06nX7c8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

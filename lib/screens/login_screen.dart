@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants.dart';
 import '../services/firebase_service.dart';
+import '../amplitude_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,12 +21,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() { _loading = true; _error = null; });
     try {
-      await FirebaseService.signIn(
+      final result = await FirebaseService.signIn(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
+      await AmplitudeService().setUserId(result.user!.uid);
+      await AmplitudeService().logLogin('email');
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
+      await AmplitudeService().logEvent('Login Failed', {'reason': e.toString()});
       setState(() => _error = 'Invalid email or password.');
     } finally {
       if (mounted) setState(() => _loading = false);

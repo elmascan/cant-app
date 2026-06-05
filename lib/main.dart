@@ -19,6 +19,7 @@ import 'screens/map_screen.dart';
 import 'screens/discover_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
+import 'amplitude_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,7 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  await AmplitudeService().init();
   runApp(const CanTApp());
 }
 

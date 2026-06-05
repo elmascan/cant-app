@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants.dart';
+import '../amplitude_service.dart';
 import 'swipe_screen.dart';
 import 'communities_screen.dart';
 
-class DiscoverTab extends StatelessWidget {
+class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
+
+  @override
+  State<DiscoverTab> createState() => _DiscoverTabState();
+}
+
+class _DiscoverTabState extends State<DiscoverTab> {
+  @override
+  void initState() {
+    super.initState();
+    AmplitudeService().logScreenView('Discover');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +56,13 @@ class DiscoverTab extends StatelessWidget {
                 description:
                     'Swipe right on players who share\nyour sports interests',
                 gradientColors: const [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SwipeScreen()),
-                ),
+                onTap: () {
+                  AmplitudeService().logEvent('Discover Sport Mate Tapped');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SwipeScreen()),
+                  );
+                },
               ),
 
               const SizedBox(height: 16),
@@ -59,11 +74,14 @@ class DiscoverTab extends StatelessWidget {
                 description:
                     'Join sport communities, chat with\nplayers in your area',
                 gradientColors: const [Color(0xFF059669), Color(0xFF0891B2)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const CommunitiesScreen()),
-                ),
+                onTap: () {
+                  AmplitudeService().logEvent('Discover Communities Tapped');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CommunitiesScreen()),
+                  );
+                },
               ),
             ],
           ),
