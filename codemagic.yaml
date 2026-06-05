@@ -10,7 +10,7 @@ workflows:
       xcode: latest
     scripts:
       - name: Restore Firebase options
-        script: echo "$FIREBASE_OPTIONS" > lib/firebase_options.dart
+        script: printf '%s' "$FIREBASE_OPTIONS" > lib/firebase_options.dart
       - name: Get Flutter packages
         script: flutter pub get
       - name: Set bundle ID
@@ -42,3 +42,4 @@ workflows:
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
+ 
