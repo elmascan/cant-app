@@ -9,8 +9,10 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Restore Firebase options
-        script: printf '%s' "$FIREBASE_OPTIONS" > lib/firebase_options.dart
+      - name: Restore secret files
+        script: |
+          printf '%s' "$FIREBASE_OPTIONS" > lib/firebase_options.dart
+          sed -i '' 's/MAPS_API_KEY_PLACEHOLDER/'"$MAPS_API_KEY_IOS"'/g' ios/Runner/AppDelegate.swift
       - name: Get Flutter packages
         script: flutter pub get
       - name: Set bundle ID
