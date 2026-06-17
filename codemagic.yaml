@@ -8,6 +8,8 @@ workflows:
         bundle_identifier: com.cant.sportsapp
       flutter: stable
       xcode: latest
+      groups:
+        - Available to all workflows
     scripts:
       - name: Restore secret files
         script: |
@@ -44,4 +46,3 @@ workflows:
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
- 
