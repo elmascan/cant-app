@@ -19,6 +19,12 @@ workflows:
           sed -i '' 's/MAPS_API_KEY_PLACEHOLDER/'"$MAPS_API_KEY_IOS"'/g' ios/Runner/AppDelegate.swift
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Set build number
+        script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number 6777126565) + 1))
+          echo "New build number: $BUILD_NUMBER"
+          cd $CM_BUILD_DIR
+          agvtool new-version -all $BUILD_NUMBER
       - name: Set up code signing
         script: xcode-project use-profiles
       - name: Build iOS IPA
