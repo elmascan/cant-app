@@ -23,7 +23,7 @@ workflows:
         script: |
           BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number 6777126565) + 1))
           echo "New build number: $BUILD_NUMBER"
-          cd $CM_BUILD_DIR
+          cd ios
           agvtool new-version -all $BUILD_NUMBER
       - name: Set up code signing
         script: xcode-project use-profiles
