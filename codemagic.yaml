@@ -17,32 +17,16 @@ workflows:
           sed -i '' 's/MAPS_API_KEY_PLACEHOLDER/'"$MAPS_API_KEY_IOS"'/g' ios/Runner/AppDelegate.swift
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Set bundle ID
+      - name: Build iOS IPA
         script: |
-          cd ios
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.cant.sportsapp" Runner/Info.plist
-      - name: Build and archive iOS
-        script: |
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath $CM_BUILD_DIR/Runner.xcarchive \
-            CODE_SIGN_STYLE=Automatic \
-            PRODUCT_BUNDLE_IDENTIFIER=com.cant.sportsapp \
-            DEVELOPMENT_TEAM=$CM_TEAM_ID \
-            archive
-      - name: Export IPA
-        script: |
-          xcodebuild -exportArchive \
-            -archivePath $CM_BUILD_DIR/Runner.xcarchive \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -exportPath $CM_BUILD_DIR/exported
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
     artifacts:
-      - $CM_BUILD_DIR/exported/*.ipa
+      - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
+ 
