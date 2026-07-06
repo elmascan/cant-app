@@ -23,13 +23,15 @@ workflows:
         script: |
           BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number 6777126565) + 1))
           echo "New build number: $BUILD_NUMBER"
-          cd ios
-          agvtool new-version -all $BUILD_NUMBER
+          flutter pub run pubspec_version_setter --build-number=$BUILD_NUMBER || true
       - name: Set up code signing
         script: xcode-project use-profiles
       - name: Build iOS IPA
         script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number 6777126565) + 1))
           flutter build ipa --release \
+            --build-name=1.1.0 \
+            --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
