@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/event.dart';
 import '../constants.dart';
+import '../services/firebase_service.dart';
 
 class EventCard extends StatelessWidget {
   final Event event;
@@ -122,6 +123,7 @@ class EventCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: AppColors.success)),
                   ),
+                _ReportMenu(event: event),
               ],
             ),
             const SizedBox(height: 16),
@@ -236,6 +238,71 @@ class EventCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       );
+}
+
+// ─── Report Menu ──────────────────────────────────────────────────────────────
+
+class _ReportMenu extends StatelessWidget {
+  final Event event;
+  const _ReportMenu({required this.event});
+
+  static const _reasons = [
+    'Inappropriate content',
+    'Spam',
+    'Fake event',
+    'Other',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      icon: const Icon(Icons.more_horiz_rounded,
+          color: AppColors.textTertiary, size: 20),
+      onSelected: (value) async {
+        if (value != 'report') return;
+        final reason = await showDialog<String>(
+          context: context,
+          builder: (dialogCtx) => SimpleDialog(
+            title: Text('Report Event',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            children: _reasons
+                .map((r) => SimpleDialogOption(
+                      onPressed: () => Navigator.pop(dialogCtx, r),
+                      child: Text(r, style: GoogleFonts.inter(fontSize: 14)),
+                    ))
+                .toList(),
+          ),
+        );
+        if (reason == null) return;
+        try {
+          await FirebaseService.reportEvent(event.id, reason);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Report submitted. Thank you.'),
+            ));
+          }
+        } catch (_) {}
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem<String>(
+          value: 'report',
+          child: Row(
+            children: [
+              const Icon(Icons.flag_rounded,
+                  size: 18, color: AppColors.error),
+              const SizedBox(width: 8),
+              Text('Report Event',
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _DetailRow extends StatelessWidget {

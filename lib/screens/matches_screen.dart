@@ -15,10 +15,18 @@ class MatchesTab extends StatefulWidget {
 }
 
 class _MatchesTabState extends State<MatchesTab> {
+  Set<String> _blockedUids = {};
+
   @override
   void initState() {
     super.initState();
     AmplitudeService().logScreenView('Matches');
+    _loadBlocked();
+  }
+
+  Future<void> _loadBlocked() async {
+    final blocked = await FirebaseService.getBlockedUids();
+    if (mounted) setState(() => _blockedUids = blocked);
   }
 
   @override
@@ -57,7 +65,16 @@ class _MatchesTabState extends State<MatchesTab> {
                         child: CircularProgressIndicator(
                             color: AppColors.primary));
                   }
-                  final docs = snapshot.data?.docs ?? [];
+                  final allDocs = snapshot.data?.docs ?? [];
+                  final docs = allDocs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final users = List<String>.from(data['users'] ?? []);
+                    final otherUid = users.firstWhere(
+                      (id) => id != currentUid,
+                      orElse: () => '',
+                    );
+                    return !_blockedUids.contains(otherUid);
+                  }).toList();
                   if (docs.isEmpty) return _buildEmptyState();
                   return ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -76,6 +93,7 @@ class _MatchesTabState extends State<MatchesTab> {
                         otherUid: otherUid,
                         lastMessage: data['lastMessage'] as String?,
                         lastMessageAt: data['lastMessageAt'] as Timestamp?,
+                        onUserBlocked: _loadBlocked,
                       );
                     },
                   );
@@ -123,12 +141,14 @@ class _MatchTile extends StatelessWidget {
   final String otherUid;
   final String? lastMessage;
   final Timestamp? lastMessageAt;
+  final VoidCallback? onUserBlocked;
 
   const _MatchTile({
     required this.matchId,
     required this.otherUid,
     this.lastMessage,
     this.lastMessageAt,
+    this.onUserBlocked,
   });
 
   @override
@@ -157,16 +177,19 @@ class _MatchTile extends StatelessWidget {
               'match_id': matchId,
               'other_uid': otherUid,
             });
-            Navigator.push(
+            Navigator.push<bool>(
               context,
               MaterialPageRoute(
                 builder: (_) => DirectChatScreen(
                   matchId: matchId,
                   otherName: name,
+                  otherUid: otherUid,
                   otherPhotoUrl: photoUrl,
                 ),
               ),
-            );
+            ).then((blocked) {
+              if (blocked == true) onUserBlocked?.call();
+            });
           },
           child: Container(
             padding: const EdgeInsets.all(14),

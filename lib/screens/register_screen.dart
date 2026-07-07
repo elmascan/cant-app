@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../services/firebase_service.dart';
 import '../amplitude_service.dart';
@@ -18,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordCtrl = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  bool _agreedToTerms = false;
   String? _error;
 
   Future<void> _register() async {
@@ -102,11 +104,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ]),
                 ),
               ],
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // ── Terms of Use ───────────────────────────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: _agreedToTerms,
+                    onChanged: (v) =>
+                        setState(() => _agreedToTerms = v ?? false),
+                    activeColor: AppColors.primary,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppColors.textSecondary),
+                          children: [
+                            const TextSpan(
+                                text:
+                                    'I agree to the '),
+                            WidgetSpan(
+                              child: GestureDetector(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                      'https://elmascan.github.io/cant-privacy/'),
+                                  mode: LaunchMode.externalApplication,
+                                ),
+                                child: Text(
+                                  'Terms of Use',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const TextSpan(
+                                text:
+                                    ' and confirm I will not post objectionable content.'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : _register,
+                  onPressed: _loading || !_agreedToTerms ? null : _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

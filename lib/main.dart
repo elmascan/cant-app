@@ -300,6 +300,7 @@ class _MainShellState extends State<MainShell> {
                     builder: (_) => DirectChatScreen(
                       matchId: matchId,
                       otherName: fromName,
+                      otherUid: '',
                       otherPhotoUrl: null,
                     ),
                   ),
@@ -352,6 +353,7 @@ class _MainShellState extends State<MainShell> {
                     builder: (_) => DirectChatScreen(
                       matchId: matchId,
                       otherName: fromName,
+                      otherUid: '',
                       otherPhotoUrl: null,
                     ),
                   ),
@@ -792,6 +794,7 @@ class _NotificationPanel extends StatelessWidget {
                                   otherName:
                                       data['fromName'] as String? ??
                                           'Player',
+                                  otherUid: '',
                                   otherPhotoUrl: null,
                                 ),
                               ),

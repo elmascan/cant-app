@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/event.dart';
+import 'moderation_service.dart';
 
 class FirebaseService {
   static FirebaseAuth get _auth => FirebaseAuth.instance;
@@ -331,6 +332,54 @@ class FirebaseService {
     return result.docs.length;
   }
 
+  // ─── Account Management ───────────────────────────────────────────────────
+
+  /// Firebase Auth + Firestore profiles dokümanını siler.
+  static Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) throw Exception('Not signed in');
+    await _db.collection('profiles').doc(user.uid).delete();
+    await user.delete();
+  }
+
+  // ─── Reports ──────────────────────────────────────────────────────────────
+
+  static Future<void> reportEvent(String eventId, String reason) async {
+    final user = currentUser;
+    if (user == null) throw Exception('Not signed in');
+    await _db.collection('reports').add({
+      'type': 'event',
+      'targetId': eventId,
+      'reporterId': user.uid,
+      'reason': reason,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ─── Block ────────────────────────────────────────────────────────────────
+
+  static Future<void> blockUser(String blockedUid) async {
+    final user = currentUser;
+    if (user == null) throw Exception('Not signed in');
+    await _db
+        .collection('blocked_users')
+        .doc(user.uid)
+        .collection('blocked')
+        .doc(blockedUid)
+        .set({'blockedAt': FieldValue.serverTimestamp()});
+  }
+
+  static Future<Set<String>> getBlockedUids() async {
+    final user = currentUser;
+    if (user == null) return {};
+    final snap = await _db
+        .collection('blocked_users')
+        .doc(user.uid)
+        .collection('blocked')
+        .get();
+    return snap.docs.map((d) => d.id).toSet();
+  }
+
   // ─── Communities ──────────────────────────────────────────────────────────
 
   static String _communityId(String sport) =>
@@ -411,6 +460,12 @@ class FirebaseService {
   static Future<void> sendMessage(String sport, String text) async {
     final user = currentUser;
     if (user == null) throw Exception('Not signed in');
+
+    final modResult = await ModerationService.moderate(text);
+    if (!modResult.isAllowed) {
+      throw Exception(modResult.reason ?? 'Content not allowed.');
+    }
+
     final profile = await getProfile(user.uid);
     final userName =
         profile?['full_name'] as String? ?? user.displayName ?? 'Unknown';
@@ -419,7 +474,7 @@ class FirebaseService {
         .doc(_communityId(sport))
         .collection('messages')
         .add({
-      'text': text,
+      'text': modResult.cleanedText,
       'userId': user.uid,
       'userName': userName,
       'createdAt': FieldValue.serverTimestamp(),
@@ -443,6 +498,9 @@ class FirebaseService {
         .map((d) => d.data()['swipedId'] as String)
         .toSet()
       ..add(user.uid); // kendini de hariç tut
+
+    // Engellenen kullanıcıları da hariç tut
+    swipedIds.addAll(await getBlockedUids());
 
     // Tüm profilleri al (daha büyük veri setlerinde cursor pagination gerekir)
     final profilesSnap = await _db.collection('profiles').limit(100).get();
@@ -553,6 +611,12 @@ class FirebaseService {
     final user = currentUser;
     if (user == null) throw Exception('Not signed in');
 
+    final modResult = await ModerationService.moderate(text);
+    if (!modResult.isAllowed) {
+      throw Exception(modResult.reason ?? 'Content not allowed.');
+    }
+    final moderatedText = modResult.cleanedText;
+
     final profile = await getProfile(user.uid);
     final senderName =
         profile?['full_name'] as String? ?? user.displayName ?? 'Unknown';
@@ -562,7 +626,7 @@ class FirebaseService {
         .doc(matchId)
         .collection('messages')
         .add({
-      'text': text,
+      'text': moderatedText,
       'senderId': user.uid,
       'senderName': senderName,
       'createdAt': FieldValue.serverTimestamp(),
@@ -570,7 +634,7 @@ class FirebaseService {
 
     // Match dokümanını lastMessage ile güncelle
     await _db.collection('matches').doc(matchId).update({
-      'lastMessage': text,
+      'lastMessage': moderatedText,
       'lastMessageAt': FieldValue.serverTimestamp(),
       'lastSenderId': user.uid,
     });
@@ -591,7 +655,7 @@ class FirebaseService {
         'type': 'new_message',
         'matchId': matchId,
         'fromName': senderName,
-        'preview': text.length > 60 ? '${text.substring(0, 60)}…' : text,
+        'preview': moderatedText.length > 60 ? '${moderatedText.substring(0, 60)}…' : moderatedText,
         'read': false,
         'createdAt': FieldValue.serverTimestamp(),
       });

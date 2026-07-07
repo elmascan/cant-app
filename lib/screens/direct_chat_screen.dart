@@ -8,12 +8,14 @@ import '../services/firebase_service.dart';
 class DirectChatScreen extends StatefulWidget {
   final String matchId;
   final String otherName;
+  final String otherUid;
   final String? otherPhotoUrl;
 
   const DirectChatScreen({
     super.key,
     required this.matchId,
     required this.otherName,
+    required this.otherUid,
     this.otherPhotoUrl,
   });
 
@@ -38,6 +40,40 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _blockUser() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Block User'),
+        content: Text(
+            'Block ${widget.otherName}? You won\'t see each other anymore.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await FirebaseService.blockUser(widget.otherUid);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to block user: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
   }
 
   Future<void> _send() async {
@@ -78,6 +114,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             .toUpperCase();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
@@ -114,14 +151,41 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     ),
             ),
             const SizedBox(width: 10),
-            Text(widget.otherName,
-                style: GoogleFonts.inter(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary)),
+            Flexible(
+              child: Text(widget.otherName,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
+            ),
           ],
         ),
         centerTitle: false,
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'block') _blockUser();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem<String>(
+                value: 'block',
+                child: Row(
+                  children: [
+                    const Icon(Icons.block_rounded,
+                        size: 18, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Text('Block User',
+                        style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -184,7 +248,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   Widget _buildInput() {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 12),
+          16, 12, 16,
+          MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom +
+              12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [

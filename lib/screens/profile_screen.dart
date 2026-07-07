@@ -56,6 +56,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) Navigator.pushReplacementNamed(context, '/welcome');
   }
 
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'Are you sure? This action cannot be undone. '
+          'Your account and profile data will be permanently deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await FirebaseService.deleteAccount();
+      if (mounted) Navigator.pushReplacementNamed(context, '/welcome');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to delete account: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+  }
+
   void _pickAvatar() {
     showModalBottomSheet(
       context: context,
@@ -549,6 +585,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: AppColors.error, width: 1.5),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Delete Account ─────────────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _deleteAccount,
+                      icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                      label: Text('Delete Account',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
                       ),
                     ),
                   ),

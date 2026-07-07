@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../constants.dart';
 import '../models/event.dart';
 import '../services/firebase_service.dart';
+import '../services/moderation_service.dart';
 
 const _kMapsApiKey = 'AIzaSyCxPo38pP6_mVeBPL_KiaqQmypXWw7-RTE';
 
@@ -248,6 +249,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
     setState(() => _loading = true);
     try {
+      final titleRaw = _titleCtrl.text.trim();
+      final titleMod = await ModerationService.moderate(titleRaw);
+      if (!titleMod.isAllowed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(titleMod.reason ?? 'Content not allowed.'),
+            backgroundColor: AppColors.error,
+          ));
+          setState(() => _loading = false);
+        }
+        return;
+      }
+
       final dt = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -258,7 +272,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       final event = Event(
         id: '',
         sport: _selectedSport,
-        title: _titleCtrl.text.trim(),
+        title: titleMod.cleanedText,
         location: _locationCtrl.text.trim(),
         time: dt,
         participants: 0,
@@ -289,10 +303,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             backgroundColor: AppColors.error));
       }
     } finally {
-      if (mounted) setState(() {
-        _loading = false;
-        _uploadingImage = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _uploadingImage = false;
+        });
+      }
     }
   }
 
