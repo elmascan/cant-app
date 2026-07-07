@@ -9,7 +9,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.cant.sportsapp
       flutter: stable
-      xcode: 16.3
+      xcode: latest
       groups:
         - Available to all workflows
     scripts:
