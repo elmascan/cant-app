@@ -70,6 +70,7 @@ class _CanTAppState extends State<CanTApp> {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const MainShell(),
+        '/guest': (context) => const GuestShell(),
       },
     );
   }
@@ -867,6 +868,209 @@ class _NotificationPanel extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// ─── Guest Shell ─────────────────────────────────────────────────────────────
+
+class GuestShell extends StatefulWidget {
+  const GuestShell({super.key});
+
+  @override
+  State<GuestShell> createState() => _GuestShellState();
+}
+
+class _GuestShellState extends State<GuestShell> {
+  final _pageController = PageController();
+  int _currentIndex = 0;
+
+  static const _guestTabs = [
+    _NavItem(Icons.event_outlined, Icons.event_rounded, 'Events'),
+    _NavItem(Icons.map_outlined, Icons.map_rounded, 'Map'),
+  ];
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToTab(int i) {
+    _pageController.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    setState(() => _currentIndex = i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: const _GuestTopBar(),
+          ),
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (i) => setState(() => _currentIndex = i),
+                children: const [
+                  EventsTab(),
+                  MapTab(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.pushNamed(context, '/login'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: Text('Create Event',
+                  style:
+                      GoogleFonts.inter(fontWeight: FontWeight.w700)),
+              elevation: 4,
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      bottomNavigationBar: _GuestBottomNav(
+        tabs: _guestTabs,
+        currentIndex: _currentIndex,
+        onTap: _goToTab,
+      ),
+    );
+  }
+}
+
+class _GuestTopBar extends StatelessWidget {
+  const _GuestTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 10),
+      child: Row(
+        children: [
+          Text('CanT',
+              style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary)),
+          const Spacer(),
+          ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/register'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              elevation: 0,
+            ),
+            child: Text('Sign Up to Join!',
+                style: GoogleFonts.inter(
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestBottomNav extends StatelessWidget {
+  final List<_NavItem> tabs;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _GuestBottomNav({
+    required this.tabs,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: List.generate(tabs.length, (i) {
+              final item = tabs[i];
+              final active = i == currentIndex;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (child, anim) =>
+                            ScaleTransition(scale: anim, child: child),
+                        child: Icon(
+                          active ? item.activeIcon : item.icon,
+                          key: ValueKey(active),
+                          size: 22,
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(item.label,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: active
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: active
+                                ? AppColors.primary
+                                : AppColors.textTertiary,
+                          )),
+                      const SizedBox(height: 2),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: active ? 4 : 0,
+                        height: active ? 4 : 0,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
     );
   }
 }

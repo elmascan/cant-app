@@ -6,6 +6,7 @@ import '../services/firebase_service.dart';
 import '../amplitude_service.dart';
 import '../widgets/event_card.dart';
 import '../widgets/leave_feedback_dialog.dart';
+import 'create_event_screen.dart';
 
 class EventsTab extends StatefulWidget {
   const EventsTab({super.key});
@@ -180,6 +181,48 @@ class _EventsTabState extends State<EventsTab> {
         .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
+  Future<void> _editEvent(Event event) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+          builder: (_) => CreateEventScreen(editEvent: event)),
+    );
+    if (updated == true) _loadEvents();
+  }
+
+  Future<void> _deleteEvent(Event event) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text(
+            'Are you sure you want to delete "${event.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _setLoading(event.id, true);
+    try {
+      await FirebaseService.deleteEvent(event.id);
+      setState(() => _events.removeWhere((e) => e.id == event.id));
+      _showSnack('"${event.title}" deleted.', AppColors.textTertiary);
+    } catch (e) {
+      _showSnack('Failed to delete: $e', AppColors.error);
+    } finally {
+      _setLoading(event.id, false);
+    }
+  }
+
   List<Event> get _filtered {
     if (_filter == 'All') return _events;
     return _events.where((e) => e.sport.toLowerCase() == _filter.toLowerCase()).toList();
@@ -312,6 +355,7 @@ class _EventsTabState extends State<EventsTab> {
                                   _waitlistPositions.containsKey(event.id);
                               return EventCard(
                                 event: event,
+                                currentUid: _uid,
                                 isJoined: joined,
                                 isOnWaitlist: onWaitlist,
                                 waitlistPosition:
@@ -321,6 +365,8 @@ class _EventsTabState extends State<EventsTab> {
                                 onLeave: () => _showLeaveDialog(event),
                                 onJoinWaitlist: () => _joinWaitlist(event),
                                 onLeaveWaitlist: () => _leaveWaitlist(event),
+                                onEdit: () => _editEvent(event),
+                                onDelete: () => _deleteEvent(event),
                               );
                             },
                           ),

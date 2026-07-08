@@ -95,6 +95,22 @@ class FirebaseService {
     await _db.collection('events').doc(eventId).update({'image_url': imageUrl});
   }
 
+  static Future<void> deleteEvent(String eventId) async {
+    await _db.collection('events').doc(eventId).delete();
+  }
+
+  static Future<void> updateEvent(String eventId, Event event) async {
+    await _db.collection('events').doc(eventId).update({
+      'sport': event.sport,
+      'title': event.title,
+      'location': event.location,
+      'time': Timestamp.fromDate(event.time),
+      'capacity': event.capacity,
+      'latitude': event.latitude,
+      'longitude': event.longitude,
+    });
+  }
+
   /// Profil fotoğrafını Storage'a yükler, Firestore'daki photo_url'yi günceller, URL döner.
   static Future<String> uploadProfileAvatar(File file) async {
     try {

@@ -241,6 +241,31 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/guest'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.explore_outlined, size: 18),
+                      label: Text(
+                        'Explore Events',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                 ],
               ),

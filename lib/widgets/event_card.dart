@@ -12,11 +12,14 @@ class EventCard extends StatelessWidget {
   final VoidCallback? onLeave;
   final VoidCallback? onJoinWaitlist;
   final VoidCallback? onLeaveWaitlist;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   final bool isJoined;
   final bool isOnWaitlist;
   final int waitlistPosition; // -1 = bilinmiyor
   final bool isLoading;
+  final String? currentUid;
 
   const EventCard({
     super.key,
@@ -25,10 +28,13 @@ class EventCard extends StatelessWidget {
     this.onLeave,
     this.onJoinWaitlist,
     this.onLeaveWaitlist,
+    this.onEdit,
+    this.onDelete,
     this.isJoined = false,
     this.isOnWaitlist = false,
     this.waitlistPosition = -1,
     this.isLoading = false,
+    this.currentUid,
   });
 
   @override
@@ -123,7 +129,10 @@ class EventCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: AppColors.success)),
                   ),
-                _ReportMenu(event: event),
+                if (event.createdBy != null && event.createdBy == currentUid)
+                  _CreatorMenu(onEdit: onEdit, onDelete: onDelete)
+                else
+                  _ReportMenu(event: event),
               ],
             ),
             const SizedBox(height: 16),
@@ -238,6 +247,53 @@ class EventCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       );
+}
+
+// ─── Creator Menu ─────────────────────────────────────────────────────────────
+
+class _CreatorMenu extends StatelessWidget {
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  const _CreatorMenu({this.onEdit, this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      icon: const Icon(Icons.more_horiz_rounded,
+          color: AppColors.textTertiary, size: 20),
+      onSelected: (value) {
+        if (value == 'edit') onEdit?.call();
+        if (value == 'delete') onDelete?.call();
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(children: [
+            const Icon(Icons.edit_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text('Edit Event',
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary)),
+          ]),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(children: [
+            const Icon(Icons.delete_rounded, size: 18, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text('Delete Event',
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error)),
+          ]),
+        ),
+      ],
+    );
+  }
 }
 
 // ─── Report Menu ──────────────────────────────────────────────────────────────

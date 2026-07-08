@@ -11,10 +11,14 @@ import '../models/event.dart';
 import '../services/firebase_service.dart';
 import '../services/moderation_service.dart';
 
-const _kMapsApiKey = 'AIzaSyCxPo38pP6_mVeBPL_KiaqQmypXWw7-RTE';
+const _kMapsApiKey = String.fromEnvironment(
+  'MAPS_API_KEY',
+  defaultValue: 'AIzaSyCxPo38pP6_mVeBPL_KiaqQmypXWw7-RTE',
+);
 
 class CreateEventScreen extends StatefulWidget {
-  const CreateEventScreen({super.key});
+  final Event? editEvent;
+  const CreateEventScreen({super.key, this.editEvent});
 
   @override
   State<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -42,6 +46,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Timer? _debounce;
 
   final _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.editEvent;
+    if (e != null) {
+      _titleCtrl.text = e.title;
+      _locationCtrl.text = e.location;
+      _capacityCtrl.text = e.capacity?.toString() ?? '';
+      _selectedSport = e.sport;
+      _selectedDate = e.time;
+      _selectedTime = TimeOfDay(hour: e.time.hour, minute: e.time.minute);
+      _selectedLat = e.latitude;
+      _selectedLng = e.longitude;
+    }
+  }
 
   // ── Places API ─────────────────────────────────────────────────────────────
 
@@ -269,37 +289,70 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _selectedTime.hour,
         _selectedTime.minute,
       );
-      final event = Event(
-        id: '',
-        sport: _selectedSport,
-        title: titleMod.cleanedText,
-        location: _locationCtrl.text.trim(),
-        time: dt,
-        participants: 0,
-        capacity: int.tryParse(_capacityCtrl.text),
-        createdBy: FirebaseService.currentUser?.uid,
-        latitude: _selectedLat,
-        longitude: _selectedLng,
-      );
-      final eventId = await FirebaseService.createEvent(event);
+      final isEdit = widget.editEvent != null;
 
-      if (_pickedImage != null) {
-        setState(() => _uploadingImage = true);
-        final imageUrl = await FirebaseService.uploadEventCover(eventId, _pickedImage!);
-        await FirebaseService.updateEventImageUrl(eventId, imageUrl);
-        setState(() => _uploadingImage = false);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Event created! 🎉'),
-            backgroundColor: AppColors.success));
-        Navigator.pop(context, true);
+      if (isEdit) {
+        final orig = widget.editEvent!;
+        final updated = Event(
+          id: orig.id,
+          sport: _selectedSport,
+          title: titleMod.cleanedText,
+          location: _locationCtrl.text.trim(),
+          time: dt,
+          participants: orig.participants,
+          capacity: int.tryParse(_capacityCtrl.text),
+          createdBy: orig.createdBy,
+          latitude: _selectedLat,
+          longitude: _selectedLng,
+          attendees: orig.attendees,
+          waitlistCount: orig.waitlistCount,
+          imageUrl: orig.imageUrl,
+        );
+        await FirebaseService.updateEvent(orig.id, updated);
+        if (_pickedImage != null) {
+          setState(() => _uploadingImage = true);
+          final imageUrl = await FirebaseService.uploadEventCover(orig.id, _pickedImage!);
+          await FirebaseService.updateEventImageUrl(orig.id, imageUrl);
+          setState(() => _uploadingImage = false);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Event updated!'),
+              backgroundColor: AppColors.success));
+          Navigator.pop(context, true);
+        }
+      } else {
+        final event = Event(
+          id: '',
+          sport: _selectedSport,
+          title: titleMod.cleanedText,
+          location: _locationCtrl.text.trim(),
+          time: dt,
+          participants: 0,
+          capacity: int.tryParse(_capacityCtrl.text),
+          createdBy: FirebaseService.currentUser?.uid,
+          latitude: _selectedLat,
+          longitude: _selectedLng,
+        );
+        final eventId = await FirebaseService.createEvent(event);
+        if (_pickedImage != null) {
+          setState(() => _uploadingImage = true);
+          final imageUrl = await FirebaseService.uploadEventCover(eventId, _pickedImage!);
+          await FirebaseService.updateEventImageUrl(eventId, imageUrl);
+          setState(() => _uploadingImage = false);
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Event created! 🎉'),
+              backgroundColor: AppColors.success));
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to create event: $e'),
+            content: Text(
+                'Failed to ${widget.editEvent != null ? 'update' : 'create'} event: $e'),
             backgroundColor: AppColors.error));
       }
     } finally {
@@ -326,7 +379,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               const Icon(Icons.close_rounded, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Create Event',
+        title: Text(widget.editEvent != null ? 'Edit Event' : 'Create Event',
             style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -406,33 +459,78 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               ],
                             ),
                           )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 52,
-                                height: 52,
-                                decoration: const BoxDecoration(
-                                    color: AppColors.primaryLight,
-                                    shape: BoxShape.circle),
-                                child: const Icon(
-                                    Icons.add_photo_alternate_rounded,
-                                    size: 26,
-                                    color: AppColors.primary),
+                        : widget.editEvent?.imageUrl != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(widget.editEvent!.imageUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const SizedBox.shrink()),
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        onTap: _pickImage,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.65),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.edit_rounded,
+                                                  size: 14,
+                                                  color: Colors.white),
+                                              const SizedBox(width: 4),
+                                              Text('Change',
+                                                  style: GoogleFonts.inter(
+                                                      fontSize: 12,
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: const BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        shape: BoxShape.circle),
+                                    child: const Icon(
+                                        Icons.add_photo_alternate_rounded,
+                                        size: 26,
+                                        color: AppColors.primary),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text('Pick an Image',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary)),
+                                  const SizedBox(height: 4),
+                                  Text('Gallery or Camera',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: AppColors.textTertiary)),
+                                ],
                               ),
-                              const SizedBox(height: 10),
-                              Text('Pick an Image',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primary)),
-                              const SizedBox(height: 4),
-                              Text('Gallery or Camera',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: AppColors.textTertiary)),
-                            ],
-                          ),
                   ),
                 ),
 
@@ -572,7 +670,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               ]
                             ],
                           )
-                        : Text('Create Event',
+                        : Text(
+                            widget.editEvent != null
+                                ? 'Save Changes'
+                                : 'Create Event',
                             style: GoogleFonts.inter(
                                 fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
