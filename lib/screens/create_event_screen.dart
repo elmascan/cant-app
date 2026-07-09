@@ -13,7 +13,12 @@ import '../services/moderation_service.dart';
 
 const _kMapsApiKey = String.fromEnvironment(
   'MAPS_API_KEY',
-  defaultValue: 'AIzaSyCxPo38pP6_mVeBPL_KiaqQmypXWw7-RTE',
+  defaultValue: '',
+);
+
+const _kPlacesApiKey = String.fromEnvironment(
+  'PLACES_API_KEY',
+  defaultValue: '',
 );
 
 class CreateEventScreen extends StatefulWidget {
@@ -88,16 +93,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Future<void> _searchPlaces(String query) async {
     if (!mounted) return;
     setState(() => _loadingSuggestions = true);
+    debugPrint('[Places] Key: ${const String.fromEnvironment("MAPS_API_KEY")}');
+    debugPrint('[Places] Input: $query');
     try {
       final uri = Uri.parse(
         'https://maps.googleapis.com/maps/api/place/autocomplete/json'
         '?input=${Uri.encodeComponent(query)}'
-        '&key=$_kMapsApiKey'
+        '&key=$_kPlacesApiKey'
         '&components=country:de'
         '&language=de'
         '&types=geocode|establishment',
       );
       final response = await http.get(uri);
+      debugPrint('[Places] Response: ${response.statusCode} ${response.body}');
       if (!mounted) return;
       final data = json.decode(response.body) as Map<String, dynamic>;
       if (data['status'] == 'OK') {
@@ -138,7 +146,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         'https://maps.googleapis.com/maps/api/place/details/json'
         '?place_id=$placeId'
         '&fields=geometry'
-        '&key=$_kMapsApiKey',
+        '&key=$_kPlacesApiKey',
       );
       final response = await http.get(uri);
       if (!mounted) return;
@@ -350,11 +358,31 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().contains('inappropriate content')
-            ? 'This image cannot be uploaded as it violates our community guidelines.'
-            : 'Failed to ${widget.editEvent != null ? 'update' : 'create'} event: $e';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(msg), backgroundColor: AppColors.error));
+        final errStr = e.toString();
+        if (errStr.contains('Daily limit reached')) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Please verify your email to create more than 5 events per day.'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 4),
+          ));
+          try {
+            await FirebaseService.sendEmailVerification();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Verification email sent! Check your inbox.'),
+                backgroundColor: AppColors.success,
+                duration: Duration(seconds: 4),
+              ));
+            }
+          } catch (_) {}
+        } else {
+          final msg = errStr.contains('inappropriate content')
+              ? 'This image cannot be uploaded as it violates our community guidelines.'
+              : 'Failed to ${widget.editEvent != null ? 'update' : 'create'} event: $e';
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error));
+        }
       }
     } finally {
       if (mounted) {

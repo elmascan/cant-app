@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -207,6 +208,7 @@ class _MainShellState extends State<MainShell> {
   final _pageController = PageController();
   int _currentIndex = 0;
   bool _emailVerified = true;
+  Timer? _verificationTimer;
 
   @override
   void initState() {
@@ -220,25 +222,55 @@ class _MainShellState extends State<MainShell> {
     if (user == null) return;
     await user.reload();
     final refreshed = FirebaseAuth.instance.currentUser;
+    final verified = refreshed?.emailVerified ?? true;
     if (mounted) {
-      setState(() => _emailVerified = refreshed?.emailVerified ?? true);
+      setState(() => _emailVerified = verified);
+    }
+    if (verified) {
+      _verificationTimer?.cancel();
+      _verificationTimer = null;
+      // Sync verified status to Firestore
+      if (refreshed != null) {
+        FirebaseService.updateEmailVerifiedStatus(verified: true);
+      }
+    } else {
+      // Start polling every 5 seconds if not already polling
+      _verificationTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+        _pollEmailVerified();
+      });
+    }
+  }
+
+  Future<void> _pollEmailVerified() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await user.reload();
+    final refreshed = FirebaseAuth.instance.currentUser;
+    if (refreshed?.emailVerified == true) {
+      _verificationTimer?.cancel();
+      _verificationTimer = null;
+      if (mounted) setState(() => _emailVerified = true);
+      FirebaseService.updateEmailVerifiedStatus(verified: true);
     }
   }
 
   Future<void> _resendVerificationEmail() async {
     try {
-      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      await FirebaseService.sendEmailVerification();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Verification email sent! Check your inbox.'),
           backgroundColor: AppColors.success,
         ));
       }
+      // Reload immediately after resend to catch quick verifications
+      await _checkEmailVerification();
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    _verificationTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -625,6 +657,11 @@ class _PersistentTopBar extends StatelessWidget {
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
+                  if (FirebaseAuth.instance.currentUser?.emailVerified == true) ...[
+                    const SizedBox(width: 3),
+                    const Icon(Icons.verified_rounded,
+                        color: AppColors.primary, size: 14),
+                  ],
                   const SizedBox(width: 8),
                 ],
                 StreamBuilder<DocumentSnapshot>(

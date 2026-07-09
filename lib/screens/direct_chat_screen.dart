@@ -10,6 +10,7 @@ class DirectChatScreen extends StatefulWidget {
   final String otherName;
   final String otherUid;
   final String? otherPhotoUrl;
+  final bool otherEmailVerified;
 
   const DirectChatScreen({
     super.key,
@@ -17,6 +18,7 @@ class DirectChatScreen extends StatefulWidget {
     required this.otherName,
     required this.otherUid,
     this.otherPhotoUrl,
+    this.otherEmailVerified = false,
   });
 
   @override
@@ -152,12 +154,24 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
             const SizedBox(width: 10),
             Flexible(
-              child: Text(widget.otherName,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(widget.otherName,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary)),
+                  ),
+                  if (widget.otherEmailVerified) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.verified_rounded,
+                        color: AppColors.primary, size: 16),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

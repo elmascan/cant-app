@@ -8,6 +8,7 @@ import '../services/firebase_service.dart';
 class EventCard extends StatelessWidget {
   final Event event;
 
+  final VoidCallback? onTap;
   final VoidCallback? onJoin;
   final VoidCallback? onLeave;
   final VoidCallback? onJoinWaitlist;
@@ -24,6 +25,7 @@ class EventCard extends StatelessWidget {
   const EventCard({
     super.key,
     required this.event,
+    this.onTap,
     this.onJoin,
     this.onLeave,
     this.onJoinWaitlist,
@@ -39,7 +41,9 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -171,6 +175,7 @@ class EventCard extends StatelessWidget {
       ),
         ],
       ),
+    ),
     );
   }
 

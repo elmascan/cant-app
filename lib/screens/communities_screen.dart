@@ -369,7 +369,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
               },
             ),
           ),
-          _buildInput(),
+          SafeArea(top: false, child: _buildInput()),
         ],
       ),
     );
@@ -377,8 +377,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
 
   Widget _buildInput() {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [

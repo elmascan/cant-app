@@ -357,11 +357,23 @@ class _ProfileCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(name,
-                                style: GoogleFonts.inter(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white)),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(name,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white)),
+                                ),
+                                if (profile['email_verified'] == true) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.verified_rounded,
+                                      color: Colors.white, size: 18),
+                                ],
+                              ],
+                            ),
                             if (city.isNotEmpty)
                               Row(children: [
                                 const Icon(Icons.location_on_rounded,

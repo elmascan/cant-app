@@ -102,7 +102,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       : Text('Sign In', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 4),
+              Center(
+                child: TextButton(
+                  onPressed: _showForgotPassword,
+                  child: Text('Forgot Password?',
+                      style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 12),
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pushReplacementNamed(context, '/register'),
@@ -121,6 +132,147 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showForgotPassword() async {
+    final emailCtrl = TextEditingController();
+    bool sending = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text('Reset Password',
+                        style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary)),
+                    const SizedBox(height: 6),
+                    Text(
+                        "Enter your email and we'll send you a reset link.",
+                        style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppColors.textSecondary)),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      autofocus: true,
+                      style: GoogleFonts.inter(
+                          fontSize: 15, color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        labelStyle:
+                            GoogleFonts.inter(color: AppColors.textSecondary),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: sending
+                            ? null
+                            : () async {
+                                final email = emailCtrl.text.trim();
+                                if (email.isEmpty) return;
+                                setSheetState(() => sending = true);
+                                try {
+                                  await FirebaseService.sendPasswordReset(email);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Password reset email sent! Check your inbox.'),
+                                        backgroundColor: AppColors.success,
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                } catch (_) {
+                                  setSheetState(() => sending = false);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'No account found with this email.'),
+                                        backgroundColor: AppColors.error,
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: sending
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text('Send Reset Email',
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

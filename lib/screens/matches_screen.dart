@@ -185,6 +185,7 @@ class _MatchTile extends StatelessWidget {
                   otherName: name,
                   otherUid: otherUid,
                   otherPhotoUrl: photoUrl,
+                  otherEmailVerified: profile?['email_verified'] == true,
                 ),
               ),
             ).then((blocked) {
@@ -247,11 +248,24 @@ class _MatchTile extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(name,
-                                style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(name,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary)),
+                                ),
+                                if (profile?['email_verified'] == true) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.verified_rounded,
+                                      color: AppColors.primary, size: 16),
+                                ],
+                              ],
+                            ),
                           ),
                           if (timeStr.isNotEmpty)
                             Text(timeStr,

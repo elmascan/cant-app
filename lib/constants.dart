@@ -36,6 +36,9 @@ const List<Map<String, String>> kSports = [
   {'name': 'Bouldering', 'emoji': '🧗'},
   {'name': 'Yoga', 'emoji': '🧘'},
   {'name': 'Hiking', 'emoji': '🥾'},
+  {'name': 'Boxing', 'emoji': '🥊'},
+  {'name': 'Skating', 'emoji': '⛸️'},
+  {'name': 'Fitness', 'emoji': '💪'},
   {'name': 'PlayStation', 'emoji': '🎮'},
   {'name': 'Drinking', 'emoji': '🍺'},
 ];

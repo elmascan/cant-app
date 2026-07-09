@@ -36,6 +36,8 @@ class _MapTabState extends State<MapTab> {
   }
 
   Future<void> _init() async {
+    _markers.clear();
+    _mappedEvents.clear();
     await Future.wait([_getUserLocation(), _loadAndGeocodeEvents()]);
     if (mounted) setState(() => _loading = false);
   }
@@ -57,7 +59,7 @@ class _MapTabState extends State<MapTab> {
       _userPosition = await Geolocator.getCurrentPosition(
         locationSettings:
             const LocationSettings(accuracy: LocationAccuracy.high),
-      );
+      ).timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
 
@@ -281,6 +283,61 @@ class _MapTabState extends State<MapTab> {
                     ),
                   ),
                 ),
+
+                // ── Error ──────────────────────────────────────────────────
+                if (_errorMsg != null)
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_off_rounded,
+                              size: 40, color: AppColors.textTertiary),
+                          const SizedBox(height: 12),
+                          Text('Failed to load events',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              )),
+                          const SizedBox(height: 6),
+                          Text('Check your connection and try again',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 14),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _errorMsg = null;
+                                _loading = true;
+                              });
+                              _init();
+                            },
+                            child: Text('Retry',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                )),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // ── Legend ─────────────────────────────────────────────────
                 if (_mappedEvents.isEmpty && _errorMsg == null)

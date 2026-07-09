@@ -33,6 +33,7 @@ class FirebaseService {
     await _db.collection('profiles').doc(credential.user!.uid).set({
       'full_name': fullName,
       'email': email,
+      'email_verified': false,
       'created_at': FieldValue.serverTimestamp(),
     });
     return credential;
@@ -42,15 +43,47 @@ class FirebaseService {
     required String email,
     required String password,
   }) async {
-    return await _auth.signInWithEmailAndPassword(
+    final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
+    );
+    // Sync email_verified status on each sign-in
+    final verified = credential.user?.emailVerified ?? false;
+    if (credential.user != null) {
+      await _db.collection('profiles').doc(credential.user!.uid).set(
+        {'email_verified': verified},
+        SetOptions(merge: true),
+      );
+    }
+    return credential;
+  }
+
+  static Future<void> updateEmailVerifiedStatus({required bool verified}) async {
+    final user = currentUser;
+    if (user == null) return;
+    await _db.collection('profiles').doc(user.uid).set(
+      {'email_verified': verified},
+      SetOptions(merge: true),
     );
   }
 
   static Future<void> signOut() async {
     await _auth.signOut();
   }
+
+  static Future<void> sendPasswordReset(String email) async {
+    await _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  static Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  static bool get isEmailVerified =>
+      _auth.currentUser?.emailVerified ?? false;
 
   // ─── Events ──────────────────────────────────────────────────────────────
 
@@ -140,6 +173,8 @@ class FirebaseService {
       'capacity': event.capacity,
       'latitude': event.latitude,
       'longitude': event.longitude,
+      if (event.createdBy != null) 'creatorId': event.createdBy,
+      if (event.createdBy != null) 'created_by': event.createdBy,
     });
   }
 
@@ -193,10 +228,17 @@ class FirebaseService {
         throw Exception('Event is full');
       }
 
-      tx.update(ref, {
+      final updateData = <String, dynamic>{
         'participants': FieldValue.increment(1),
         'attendees': FieldValue.arrayUnion([user.uid]),
-      });
+      };
+      // Backfill creatorId for events created before this field was added
+      if (!data.containsKey('creatorId')) {
+        final createdBy = data['created_by'] as String?;
+        if (createdBy != null) updateData['creatorId'] = createdBy;
+      }
+
+      tx.update(ref, updateData);
     });
   }
 
@@ -228,12 +270,20 @@ class FirebaseService {
 
       attendees.remove(user.uid);
 
+      // Backfill creatorId for events created before this field was added
+      final creatorBackfill = <String, dynamic>{};
+      if (!data.containsKey('creatorId')) {
+        final createdBy = data['created_by'] as String?;
+        if (createdBy != null) creatorBackfill['creatorId'] = createdBy;
+      }
+
       if (waitlistSnap.docs.isEmpty) {
         // Waitlist yok → participants azalt, attendees güncelle
         // 0'ın altına düşmesini engelle
         tx.update(eventRef, {
           'participants': participants > 0 ? FieldValue.increment(-1) : 0,
           'attendees': attendees,
+          ...creatorBackfill,
         });
       } else {
         // Waitlist var → slot dolduruluyor, participants değişmez
@@ -247,6 +297,7 @@ class FirebaseService {
         tx.update(eventRef, {
           'attendees': attendees,
           'waitlistCount': FieldValue.increment(-1),
+          ...creatorBackfill,
         });
 
         // Waitlist'ten çıkar
