@@ -32,6 +32,7 @@ workflows:
             --build-name=1.1.1 \
             --build-number=$BUILD_NUMBER \
             --dart-define=VISION_API_KEY=$VISION_API_KEY \
+            --dart-define=PLACES_API_KEY=$PLACES_API_KEY \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
