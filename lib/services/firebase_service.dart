@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/event.dart';
 import 'moderation_service.dart';
+import 'vision_moderation_service.dart';
 
 class FirebaseService {
   static FirebaseAuth get _auth => FirebaseAuth.instance;
@@ -64,13 +65,44 @@ class FirebaseService {
   }
 
   /// Etkinlik oluşturur ve oluşturulan belge ID'sini döner.
+  /// Günlük 5 event sınırı: doğrulanmış email yoksa hata fırlatır.
   static Future<String> createEvent(Event event) async {
-    final ref = await _db.collection('events').add(event.toFirestore());
+    final user = currentUser;
+    if (user == null) throw Exception('Not signed in');
+
+    final startOfDay = DateTime.now();
+    final dayStart = DateTime(startOfDay.year, startOfDay.month, startOfDay.day);
+    final countSnap = await _db
+        .collection('events')
+        .where('created_by', isEqualTo: user.uid)
+        .where('created_at', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .get();
+
+    if (countSnap.docs.length >= 5) {
+      await user.reload();
+      final refreshed = _auth.currentUser;
+      if (refreshed == null || !refreshed.emailVerified) {
+        try { await refreshed?.sendEmailVerification(); } catch (_) {}
+        throw Exception(
+            'Daily limit reached. Please verify your email to create more events.');
+      }
+    }
+
+    final data = {
+      ...event.toFirestore(),
+      'creatorId': user.uid,
+      'created_by': user.uid,
+      'created_at': FieldValue.serverTimestamp(),
+    };
+    final ref = await _db.collection('events').add(data);
     return ref.id;
   }
 
   /// Etkinlik kapak fotoğrafını Storage'a yükler, URL döner.
   static Future<String> uploadEventCover(String eventId, File file) async {
+    if (!await VisionModerationService.isSafe(file)) {
+      throw Exception('Image contains inappropriate content');
+    }
     try {
       debugPrint('[Storage] uploadEventCover → bucket: ${_storage.bucket}');
       debugPrint('[Storage] file path: ${file.path}, size: ${await file.length()} bytes');
@@ -113,6 +145,9 @@ class FirebaseService {
 
   /// Profil fotoğrafını Storage'a yükler, Firestore'daki photo_url'yi günceller, URL döner.
   static Future<String> uploadProfileAvatar(File file) async {
+    if (!await VisionModerationService.isSafe(file)) {
+      throw Exception('Image contains inappropriate content');
+    }
     try {
       final user = currentUser;
       if (user == null) throw Exception('Not signed in');
@@ -350,11 +385,70 @@ class FirebaseService {
 
   // ─── Account Management ───────────────────────────────────────────────────
 
-  /// Firebase Auth + Firestore profiles dokümanını siler.
+  /// Kullanıcının tüm verilerini siler, ardından Auth kaydını kaldırır.
   static Future<void> deleteAccount() async {
     final user = currentUser;
     if (user == null) throw Exception('Not signed in');
-    await _db.collection('profiles').doc(user.uid).delete();
+    final uid = user.uid;
+
+    // 1. Events created by user
+    final events = await _db
+        .collection('events')
+        .where('created_by', isEqualTo: uid)
+        .get();
+    for (final doc in events.docs) {
+      await doc.reference.delete();
+    }
+
+    // 2. Swipes
+    final swipes = await _db
+        .collection('swipes')
+        .where('swiperId', isEqualTo: uid)
+        .get();
+    for (final doc in swipes.docs) {
+      await doc.reference.delete();
+    }
+
+    // 3. Matches
+    final matches = await _db
+        .collection('matches')
+        .where('users', arrayContains: uid)
+        .get();
+    for (final doc in matches.docs) {
+      await doc.reference.delete();
+    }
+
+    // 4. Notification items → parent doc
+    final notifItems = await _db
+        .collection('notifications')
+        .doc(uid)
+        .collection('items')
+        .get();
+    for (final doc in notifItems.docs) {
+      await doc.reference.delete();
+    }
+    await _db.collection('notifications').doc(uid).delete();
+
+    // 5. Blocked users subcollection → parent doc
+    final blockedItems = await _db
+        .collection('blocked_users')
+        .doc(uid)
+        .collection('blocked')
+        .get();
+    for (final doc in blockedItems.docs) {
+      await doc.reference.delete();
+    }
+    await _db.collection('blocked_users').doc(uid).delete();
+
+    // 6. Profile doc
+    await _db.collection('profiles').doc(uid).delete();
+
+    // 7. Storage avatar (ignore if not found)
+    try {
+      await _storage.ref().child('profiles/$uid/avatar.jpg').delete();
+    } catch (_) {}
+
+    // 8. Auth user
     await user.delete();
   }
 

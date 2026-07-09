@@ -5,6 +5,11 @@ val localProps = Properties()
 val localPropsFile = rootProject.file("../local.properties")
 if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
 
+// Inject local.properties keys into Flutter dart-defines so
+// String.fromEnvironment() can read them without manual --dart-define flags.
+val visionApiKey: String = localProps.getProperty("VISION_API_KEY", "")
+
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("../key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -25,6 +30,9 @@ android {
     namespace = "com.cant.sportsapp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    buildFeatures {
+        buildConfig = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -45,6 +53,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["MAPS_API_KEY"] = localProps.getProperty("MAPS_API_KEY", "")
+        buildConfigField("String", "VISION_API_KEY", "\"$visionApiKey\"")
     }
 
     signingConfigs {

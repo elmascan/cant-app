@@ -159,6 +159,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
 
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  '⚠️ Safety Notice: CanT connects you with real people. '
+                  'Always meet in public places and prioritize your personal safety. '
+                  'CanT is not responsible for in-person interactions between users.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,

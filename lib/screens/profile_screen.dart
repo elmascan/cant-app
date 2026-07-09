@@ -167,8 +167,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _photoUrl = url);
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('inappropriate content')
+            ? 'This image cannot be uploaded as it violates our community guidelines.'
+            : 'Failed to upload photo: $e';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to upload photo: $e'),
+          content: Text(msg),
           backgroundColor: AppColors.error,
         ));
       }

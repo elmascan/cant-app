@@ -206,11 +206,35 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   final _pageController = PageController();
   int _currentIndex = 0;
+  bool _emailVerified = true;
 
   @override
   void initState() {
     super.initState();
     _initNotifications();
+    _checkEmailVerification();
+  }
+
+  Future<void> _checkEmailVerification() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await user.reload();
+    final refreshed = FirebaseAuth.instance.currentUser;
+    if (mounted) {
+      setState(() => _emailVerified = refreshed?.emailVerified ?? true);
+    }
+  }
+
+  Future<void> _resendVerificationEmail() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Verification email sent! Check your inbox.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (_) {}
   }
 
   @override
@@ -406,6 +430,45 @@ class _MainShellState extends State<MainShell> {
             bottom: false,
             child: _PersistentTopBar(onOpenProfile: _openProfile),
           ),
+          if (!_emailVerified)
+            Container(
+              color: const Color(0xFFFEF3C7),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Text('📧', style: TextStyle(fontSize: 15)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Verify your email to unlock unlimited event creation.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _resendVerificationEmail,
+                    style: TextButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8)),
+                    child: Text('Resend',
+                        style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF92400E))),
+                  ),
+                  GestureDetector(
+                    onTap: _checkEmailVerification,
+                    child: const Icon(Icons.refresh_rounded,
+                        size: 18, color: Color(0xFF92400E)),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+            ),
           Expanded(
             child: MediaQuery.removePadding(
               context: context,
@@ -911,9 +974,9 @@ class _GuestShellState extends State<GuestShell> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          SafeArea(
+          const SafeArea(
             bottom: false,
-            child: const _GuestTopBar(),
+            child: _GuestTopBar(),
           ),
           Expanded(
             child: MediaQuery.removePadding(

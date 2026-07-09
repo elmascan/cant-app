@@ -350,10 +350,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('inappropriate content')
+            ? 'This image cannot be uploaded as it violates our community guidelines.'
+            : 'Failed to ${widget.editEvent != null ? 'update' : 'create'} event: $e';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Failed to ${widget.editEvent != null ? 'update' : 'create'} event: $e'),
-            backgroundColor: AppColors.error));
+            content: Text(msg), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) {
