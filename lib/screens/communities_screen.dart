@@ -220,8 +220,20 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _sending = false;
+  Set<String> _blockedUids = {};
 
   String get _currentUid => FirebaseService.currentUser?.uid ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBlocked();
+  }
+
+  Future<void> _loadBlocked() async {
+    final blocked = await FirebaseService.getBlockedUids();
+    if (mounted) setState(() => _blockedUids = blocked);
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -233,6 +245,154 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
         );
       }
     });
+  }
+
+  Future<void> _deleteMessage(String messageId) async {
+    try {
+      await FirebaseService.deleteMessage(widget.sportName, messageId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to delete: $e'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _reportMessage(
+      String messageId, String senderUid, String text) async {
+    try {
+      await FirebaseService.reportMessage(
+        sport: widget.sportName,
+        messageId: messageId,
+        senderUid: senderUid,
+        text: text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message reported')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to report: $e'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  Future<void> _blockUser(String uid) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Block User'),
+        content: const Text("You won't see this user's messages anymore."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await FirebaseService.blockUser(uid);
+      await _loadBlocked();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User blocked')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to block: $e'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  void _showMessageMenu(BuildContext ctx, String messageId,
+      Map<String, dynamic> data, bool isMe) {
+    final senderId = data['userId'] as String? ?? '';
+    final text = data['text'] as String? ?? '';
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            if (isMe)
+              ListTile(
+                leading:
+                    const Icon(Icons.delete_rounded, color: AppColors.error),
+                title: Text('Delete Message',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600, color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteMessage(messageId);
+                },
+              )
+            else ...[
+              ListTile(
+                leading: const Icon(Icons.flag_rounded,
+                    color: AppColors.textSecondary),
+                title: Text('Report Message',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _reportMessage(messageId, senderId, text);
+                },
+              ),
+              ListTile(
+                leading:
+                    const Icon(Icons.block_rounded, color: AppColors.error),
+                title: Text('Block User',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600, color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _blockUser(senderId);
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _send() async {
@@ -323,7 +483,11 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                           color: AppColors.primary));
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                final docs = (snapshot.data?.docs ?? []).where((doc) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  final senderId = d['userId'] as String? ?? '';
+                  return !_blockedUids.contains(senderId);
+                }).toList();
 
                 if (docs.isEmpty) {
                   return Center(
@@ -360,10 +524,15 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
-                    final data =
-                        docs[i].data() as Map<String, dynamic>;
+                    final doc = docs[i];
+                    final data = doc.data() as Map<String, dynamic>;
                     final isMe = data['userId'] == _currentUid;
-                    return _MessageBubble(data: data, isMe: isMe);
+                    return _MessageBubble(
+                      data: data,
+                      isMe: isMe,
+                      onLongPress: () =>
+                          _showMessageMenu(context, doc.id, data, isMe),
+                    );
                   },
                 );
               },
@@ -443,7 +612,9 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> data;
   final bool isMe;
-  const _MessageBubble({required this.data, required this.isMe});
+  final VoidCallback? onLongPress;
+  const _MessageBubble(
+      {required this.data, required this.isMe, this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -454,7 +625,9 @@ class _MessageBubble extends StatelessWidget {
         ? DateFormat('HH:mm').format(ts.toDate())
         : '';
 
-    return Padding(
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment:
@@ -532,6 +705,7 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

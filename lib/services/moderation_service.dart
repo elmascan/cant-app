@@ -102,6 +102,7 @@ class ModerationService {
     'nude', 'nudes', 'naked',
     'penis', 'vagina', 'breast', 'breasts',
     'anal', 'anus',
+    'suck', 'sucking', 'blowjob', 'bj', 'handjob',
     'masturbat', 'masturbation',
     'erotic', 'erotica',
     'escort',
@@ -341,14 +342,36 @@ class ModerationService {
   static final List<RegExp> _censorPatterns =
       _censorList.map(_wordPattern).toList();
 
+  // Normalizes text to catch leet-speak / character-substitution evasion.
+  // Returns lowercased normalized form; never shown to the user.
+  static String _normalize(String text) {
+    var t = text.toLowerCase();
+    // Collapse consecutive repeated characters: dixxs → dixs
+    t = t.replaceAllMapped(RegExp(r'(.)\1+'), (m) => m.group(1)!);
+    // Leet-speak substitutions
+    t = t
+        .replaceAll('@', 'a')
+        .replaceAll(r'$', 's')
+        .replaceAll('0', 'o')
+        .replaceAll('1', 'i')
+        .replaceAll('3', 'e')
+        .replaceAll('4', 'a')
+        .replaceAll('!', 'i')
+        .replaceAll('+', 't')
+        .replaceAll('x', 'ck');
+    return t;
+  }
+
   static Future<ModerationResult> moderate(String text) async {
     if (text.trim().isEmpty) {
       return ModerationResult(isAllowed: true, cleanedText: text);
     }
 
-    // 1. Block check — whole-word match, case-insensitive.
+    final normalized = _normalize(text);
+
+    // 1. Block check — original and normalized (catches leet-speak evasion).
     for (final pattern in _blockPatterns) {
-      if (pattern.hasMatch(text)) {
+      if (pattern.hasMatch(text) || pattern.hasMatch(normalized)) {
         return ModerationResult(
           isAllowed: false,
           cleanedText: text,
@@ -357,7 +380,19 @@ class ModerationService {
       }
     }
 
-    // 2. Profanity censor — replace matching words with ***.
+    // 2. Censor-evasion check — if normalized hits censor list but original
+    //    doesn't, the user is actively evading; block instead of censor.
+    for (final pattern in _censorPatterns) {
+      if (pattern.hasMatch(normalized) && !pattern.hasMatch(text)) {
+        return ModerationResult(
+          isAllowed: false,
+          cleanedText: text,
+          reason: 'This content violates community guidelines.',
+        );
+      }
+    }
+
+    // 3. Profanity censor — apply to original text, return original wording.
     String cleaned = text;
     for (final pattern in _censorPatterns) {
       cleaned = cleaned.replaceAll(pattern, '***');

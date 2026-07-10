@@ -21,6 +21,7 @@ import 'screens/discover_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
 import 'amplitude_service.dart';
+import 'package:flutter/foundation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,10 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+  }
+  // Web'de token kalıcılığı için LOCAL mod — mobilde no-op (Firebase varsayılanı).
+  if (kIsWeb) {
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
   await AmplitudeService().init();
   runApp(const CanTApp());

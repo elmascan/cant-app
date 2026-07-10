@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/event.dart';
 import 'moderation_service.dart';
 import 'vision_moderation_service.dart';
@@ -94,7 +95,13 @@ class FirebaseService {
         .where('time', isGreaterThanOrEqualTo: now)
         .orderBy('time', descending: false)
         .get();
-    return snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
+    // Firestore doesn't allow inequality filters on two fields in one query,
+    // so we filter under_review events client-side after fetching.
+    return snapshot.docs
+        .where((doc) =>
+            (doc.data() as Map<String, dynamic>)['status'] != 'under_review')
+        .map((doc) => Event.fromFirestore(doc))
+        .toList();
   }
 
   /// Etkinlik oluşturur ve oluşturulan belge ID'sini döner.
@@ -515,6 +522,23 @@ class FirebaseService {
       'reason': reason,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Count distinct reporters for this event; mark under_review at 3+.
+    final snap = await _db
+        .collection('reports')
+        .where('type', isEqualTo: 'event')
+        .where('targetId', isEqualTo: eventId)
+        .get();
+    final distinctReporters = snap.docs
+        .map((d) => d.data()['reporterId'] as String?)
+        .whereType<String>()
+        .toSet();
+    if (distinctReporters.length >= 3) {
+      await _db
+          .collection('events')
+          .doc(eventId)
+          .update({'status': 'under_review'});
+    }
   }
 
   // ─── Block ────────────────────────────────────────────────────────────────
@@ -642,15 +666,73 @@ class FirebaseService {
     });
   }
 
+  static Future<void> deleteMessage(String sport, String messageId) async {
+    await _db
+        .collection('communities')
+        .doc(_communityId(sport))
+        .collection('messages')
+        .doc(messageId)
+        .delete();
+  }
+
+  static Future<void> reportMessage({
+    required String sport,
+    required String messageId,
+    required String senderUid,
+    required String text,
+  }) async {
+    final user = currentUser;
+    if (user == null) throw Exception('Not signed in');
+    await _db.collection('reports').add({
+      'type': 'community_message',
+      'sport': sport,
+      'messageId': messageId,
+      'senderUid': senderUid,
+      'text': text,
+      'reportedBy': user.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ─── Discover ─────────────────────────────────────────────────────────────
 
-  /// Mevcut kullanıcının daha önce swipe etmediği, aynı sporla ilgilenen
-  /// profilleri döner. Maksimum 50 profil.
+  static const _kSwipeCacheKey = 'swipe_cache_uids';
+  static const _kSwipeCacheTimestamp = 'swipe_cache_ts';
+  static const _kSwipeCacheExpiryMs = 24 * 60 * 60 * 1000; // 24 saat
+
+  static Future<Set<String>> _getLocalSwipedIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ts = prefs.getInt(_kSwipeCacheTimestamp) ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - ts > _kSwipeCacheExpiryMs) {
+      // 24 saat doldu — cache'i sıfırla
+      await prefs.remove(_kSwipeCacheKey);
+      await prefs.setInt(_kSwipeCacheTimestamp, now);
+      return {};
+    }
+    return (prefs.getStringList(_kSwipeCacheKey) ?? []).toSet();
+  }
+
+  static Future<void> _addToLocalSwipedCache(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_kSwipeCacheKey) ?? [];
+    if (!ids.contains(uid)) {
+      ids.add(uid);
+      await prefs.setStringList(_kSwipeCacheKey, ids);
+    }
+    // Timestamp yoksa ilk ekleme anında başlat
+    if (!prefs.containsKey(_kSwipeCacheTimestamp)) {
+      await prefs.setInt(
+          _kSwipeCacheTimestamp, DateTime.now().millisecondsSinceEpoch);
+    }
+  }
+
+  /// Mevcut kullanıcının daha önce swipe etmediği profilleri döner. Maks 50.
   static Future<List<Map<String, dynamic>>> getDiscoverProfiles() async {
     final user = currentUser;
     if (user == null) return [];
 
-    // Daha önce swipe edilen kullanıcı ID'leri
+    // Firestore'daki swipe kaydı + local 24h cache birleşimi
     final swipesSnap = await _db
         .collection('swipes')
         .where('swiperId', isEqualTo: user.uid)
@@ -658,19 +740,16 @@ class FirebaseService {
     final swipedIds = swipesSnap.docs
         .map((d) => d.data()['swipedId'] as String)
         .toSet()
-      ..add(user.uid); // kendini de hariç tut
+      ..add(user.uid);
 
-    // Engellenen kullanıcıları da hariç tut
+    swipedIds.addAll(await _getLocalSwipedIds());
     swipedIds.addAll(await getBlockedUids());
 
-    // Tüm profilleri al (daha büyük veri setlerinde cursor pagination gerekir)
     final profilesSnap = await _db.collection('profiles').limit(100).get();
-
     final results = <Map<String, dynamic>>[];
     for (final doc in profilesSnap.docs) {
       if (swipedIds.contains(doc.id)) continue;
-      final data = doc.data();
-      results.add({...data, 'uid': doc.id});
+      results.add({...doc.data(), 'uid': doc.id});
       if (results.length >= 50) break;
     }
     return results;
@@ -693,15 +772,20 @@ class FirebaseService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    // Local cache'e ekle — uygulama yeniden açılsa da 24 saat görünmez.
+    await _addToLocalSwipedCache(swipedUserId);
+
     if (!liked) return false;
 
     // Karşı taraf sağa swipe etmiş mi kontrol et
-    final reverseDoc = await _db
-        .collection('swipes')
-        .doc('${swipedUserId}_${user.uid}')
-        .get();
+    final reverseId = '${swipedUserId}_${user.uid}';
+    debugPrint('[Swipe] Checking reverse: $reverseId');
+    final reverseDoc =
+        await _db.collection('swipes').doc(reverseId).get();
+    debugPrint('[Swipe] Reverse exists: ${reverseDoc.exists}');
     if (!reverseDoc.exists) return false;
     final reverseLiked = reverseDoc.data()?['liked'] as bool? ?? false;
+    debugPrint('[Swipe] Reverse liked: $reverseLiked');
     if (!reverseLiked) return false;
 
     // Match! — tekrar kayıt yazmamak için kontrol et

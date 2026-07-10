@@ -59,25 +59,35 @@ class _SwipeScreenState extends State<SwipeScreen>
   ) async {
     if (previousIndex >= _profiles.length) return true;
     final profile = _profiles[previousIndex];
-    final swipedUserId = profile['uid'] as String;
-
-    if (direction == CardSwiperDirection.right) {
-      final isMatch = await FirebaseService.swipeUser(
-        swipedUserId: swipedUserId,
-        liked: true,
-      );
-      if (isMatch && mounted) {
-        _triggerMatchAnimation(
-          profile['full_name'] as String? ?? 'Someone',
-          (profile['sports'] as List?)?.isNotEmpty == true
-              ? getSportEmoji((profile['sports'] as List).first as String)
-              : '🏃',
-        );
-      }
-    } else if (direction == CardSwiperDirection.left) {
-      await FirebaseService.swipeUser(swipedUserId: swipedUserId, liked: false);
-    }
+    // Fire-and-forget: swipe animasyonunu bloklamadan arka planda işle.
+    _processSwipe(profile, direction);
     return true;
+  }
+
+  Future<void> _processSwipe(
+      Map<String, dynamic> profile, CardSwiperDirection direction) async {
+    final swipedUserId = profile['uid'] as String;
+    try {
+      if (direction == CardSwiperDirection.right) {
+        final isMatch = await FirebaseService.swipeUser(
+          swipedUserId: swipedUserId,
+          liked: true,
+        );
+        if (isMatch && mounted) {
+          _triggerMatchAnimation(
+            profile['full_name'] as String? ?? 'Someone',
+            (profile['sports'] as List?)?.isNotEmpty == true
+                ? getSportEmoji((profile['sports'] as List).first as String)
+                : '🏃',
+          );
+        }
+      } else if (direction == CardSwiperDirection.left) {
+        await FirebaseService.swipeUser(
+            swipedUserId: swipedUserId, liked: false);
+      }
+    } catch (_) {
+      // Swipe hatası UI'ı bloklamasın; Firestore retry mekanizması devreye girer.
+    }
   }
 
   void _triggerMatchAnimation(String name, String emoji) {
@@ -183,19 +193,39 @@ class _SwipeScreenState extends State<SwipeScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🏃', style: TextStyle(fontSize: 60)),
+            const Text('🎯', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 20),
-            Text('No players found',
+            Text('No more players nearby',
                 style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary)),
             const SizedBox(height: 8),
             Text(
-              'Update your sports interests in your profile to find playmates.',
+              'You\'ve seen everyone for now. Check back in 24 hours for new players.',
               style: GoogleFonts.inter(
                   fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () {
+                setState(() => _loading = true);
+                _loadProfiles();
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text('Refresh',
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+              ),
             ),
           ],
         ),

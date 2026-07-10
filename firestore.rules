@@ -58,8 +58,10 @@ service cloud.firestore {
 
     // ── Swipes ────────────────────────────────────────────────────────────────
     match /swipes/{swipeId} {
-      // Sadece kendi swipe'larını okuyabilir
-      allow read: if isAuth() && resource.data.swiperId == request.auth.uid;
+      // Match kontrolü için karşı tarafın swipe dokümanı da okunabilmeli.
+      // Önceki kural (resource.data.swiperId == uid) var olmayan dokümanları
+      // null ref hatası ile reddediyordu → match hiç oluşmuyordu.
+      allow read: if isAuth();
       // Sadece kendi swipe'ını yazabilir (swipeId = swiperId_swipedId formatı)
       allow create: if isAuth() && request.resource.data.swiperId == request.auth.uid;
       allow update: if isAuth() && resource.data.swiperId == request.auth.uid;
