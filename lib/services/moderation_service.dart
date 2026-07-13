@@ -142,7 +142,7 @@ class ModerationService {
     // ── Alcohol / Party risk ──────────────────────────────────────────────────
     'drinking game', 'beer pong', 'drunk party', 'wasted',
     // ── Scam / Spam ───────────────────────────────────────────────────────────
-    'free money', 'earn €', 'earn $', 'make money fast',
+    'free money', 'earn €', 'earn \$', 'make money fast', 'earn dollar', 'earn euro'
     'pyramid scheme', 'network marketing',
     // ── Safety / Privacy ─────────────────────────────────────────────────────
     'meet at my place', 'come to my house', 'secret location',
