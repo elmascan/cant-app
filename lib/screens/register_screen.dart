@@ -150,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             const TextSpan(
                                 text:
-                                    ' and confirm I will not post objectionable content.'),
+                                    '. I understand that CanT is a sports community platform and is not responsible for in-person interactions. I will comply with all applicable laws and community guidelines.'),
                           ],
                         ),
                       ),

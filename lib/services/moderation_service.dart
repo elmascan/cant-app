@@ -120,6 +120,32 @@ class ModerationService {
     'nazi', 'nazis',
     'racist', 'racism',
     'genocide',
+    // ── Sexual / Adult content ───────────────────────────────────────────────
+    'bdsm', 'fetish', 'bondage', 'dominat', 'submissive',
+    'kink', 'kinky', 'orgy', 'threesome', 'swinger',
+    'hookup', 'hook up', 'fwb', 'friends with benefits',
+    'nsa', 'one night stand', 'sugar daddy', 'sugar baby',
+    'cam girl', 'camgirl', 'strip', 'stripper', 'lapdance',
+    'adult only', 'adults only', '18+', 'erotic', 'sensual massage',
+    'happy ending', 'sex party', 'sex club', 'strip club',
+    // ── Drug related ─────────────────────────────────────────────────────────
+    'weed', 'cannabis', 'cocaine', 'heroin', 'mdma', 'ecstasy',
+    'lsd', 'acid trip', 'drug party', 'high party', 'stoned',
+    '420', 'blunt', 'joint', 'bong',
+    'weed party', '420 friendly',
+    // ── Violence / Hate / Weapons ─────────────────────────────────────────────
+    'white power', 'white supremacy', 'white pride', 'ethnic cleansing',
+    'lynching', 'go back to your country',
+    'heil', 'kkk',
+    'jihad', 'allahu akbar', 'incel', 'blackpill',
+    'gun for hire', 'armed event', 'bring weapons',
+    // ── Alcohol / Party risk ──────────────────────────────────────────────────
+    'drinking game', 'beer pong', 'drunk party', 'wasted',
+    // ── Scam / Spam ───────────────────────────────────────────────────────────
+    'free money', 'earn €', 'earn $', 'make money fast',
+    'pyramid scheme', 'network marketing',
+    // ── Safety / Privacy ─────────────────────────────────────────────────────
+    'meet at my place', 'come to my house', 'secret location',
     // ── German (Deutsch) ────────────────────────────────────────────────────
     'ich töte dich',
     'ich bringe dich um',
